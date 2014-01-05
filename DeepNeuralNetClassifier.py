@@ -244,3 +244,70 @@ class DeepNeuralNetClassifier(object):
 				valid_costs.append(self.loss(Xv, Yv, reg))
 			
 		return train_costs, valid_costs
+
+	def fit(self, X, Y, itrs=100, learn_rate={0.0:0.1}, reg={0.0: 0.1},
+			momentum={0.0:0.5, 0.1:0.99}, report_cost=False, batch_size={0.0:-1}):
+		"""
+		Fit the model. 
+		X - observation matrix (observations by dimensions)
+		Y - one-hot target matrix (examples by classes)
+		itrs - number of iterations to run
+		learn_rate - schedule for the learning rate.
+		reg - schedule for the regularization
+		momentum - schedule for the weight of the previous gradient in the update step
+		report_cost - if true, return the loss function at each step (expensive).
+		batch_size - schedule for the size of minibatches to use in training
+		"""
+		#prepare the hyperparameter schedule
+		momentum_schedule = self.setup_schedule(momentum, itrs)
+		reg_schedule = self.setup_schedule(reg, itrs)
+		lr_schedule = self.setup_schedule(learn_rate, itrs)
+		bsize_schedule = self.setup_schedule(batch_size, itrs)
+			
+							   
+		#add a bias term (so the mean can be nonzero)
+		X = self.add_bias(X)
+		
+		#hidden layers
+		self.W_hid = []
+		for insize, outsize in zip([X.shape[1]] + self.layer_sizes, self.layer_sizes):
+			self.W_hid.append( uniform(-0.01, 0.01, (outsize, insize)) )
+			
+		#output layer (softmax classifier)
+		self.W_out = uniform(-0.3, 0.3, (Y.shape[1], self.layer_sizes[-1]))
+		
+		#optimize
+		costs = []
+		layer_grads_prev = [zeros(W.shape) for W in self.W_hid] +  [zeros(self.W_out.shape)]
+		for i in range(itrs):
+			#get batch
+			minibatch_inds = self.batch_inds(bsize_schedule[i], X.shape[0])
+			
+			#compute gradients (uses backprop)
+			layer_grads = self.grad(X[minibatch_inds,:], Y[minibatch_inds,:], reg_schedule[i]) 
+			
+			#update hidden layers
+			self.W_hid = [W_i - lr_schedule[i]*(grad_i + momentum_schedule[i]*prev_grad_i) 
+					  for W_i, grad_i, prev_grad_i in 
+					  zip(self.W_hid, layer_grads[:-1], layer_grads_prev[:-1])]
+			#update output layer
+			self.W_out = self.W_out - lr_schedule[i]*(layer_grads[-1] + momentum_schedule[i]*layer_grads_prev[-1])
+			
+			#update the momentum terms
+			layer_grads_prev = layer_grads
+			
+			if report_cost and i % 5 == 0:
+				costs.append(self.loss(X,Y,0))
+
+		return costs
+		
+	def setup_schedule(self, cum_pct_map, length):
+		'''
+		Given a cumulative pct mapping (when changes occur) in the schedule, build a list.
+		'''
+		assert 0.0 in cum_pct_map, 'An initial value must be specified.'
+		schedule = [cum_pct_map[0.0] for i in range(length)]
+		for cum_start in sorted(cum_pct_map.iterkeys()):
+			pos = int(cum_start*length)
+			schedule[pos:] = [cum_pct_map[cum_start]]*(length-pos)
+		return schedule

@@ -29,7 +29,7 @@ def fourier_basis(x):
 if __name__ == '__main__':
 	#Classification
 	X,Y = make_classification(n_features=20, n_informative=8, n_redundant=12,
-							n_repeated=0, n_classes=5, n_clusters_per_class=2)
+							n_repeated=0, n_classes=5, n_clusters_per_class=3)
 	#make Y into a one-hot matrix, the format we use.
 	lb = LabelBinarizer()
 	Y = lb.fit_transform(Y)
@@ -49,14 +49,17 @@ if __name__ == '__main__':
 	print 'Neural Network (shallow) error rate:', error_rate(nnet.predict(X), Y)
 	
 	#deeper neural network
-	deepnet = DeepNeuralNetClassifier(layer_sizes=[100,100], dropout_rate=0.5)
-	deepnet.fit(X, Y, itrs=2000, learn_rate=0.1, reg=1e-7, momentum=0.9,
-				batch_size=10)
+	#the deep net uses *schedules* instead of constant values for hyperparameters
+	#the schedule specifies when to change the value. You must specify an initial value.
+	deepnet = DeepNeuralNetClassifier(layer_sizes=[200,200], dropout_rate=0.5)
+	deepnet.fit(X, Y, itrs=2000, learn_rate={0.0:0.1, 0.75:0.05},
+				reg={0.0:0.0, 0.5:1e-5}, momentum={0.0:0.5, 0.25:0.9, 0.5:0.99},
+				batch_size={0.0:1, 0.25:10, 0.5:100})
 	print 'Deep (100-100) Neural Network error rate', error_rate(deepnet.predict(X), Y)
 	
 	#regression
 	X = uniform(-5, 5, size=(200,2))
-	Y = sin(X[:,0]) + X[:,1]
+	Y = sin(X[:,0]) + 0.3*X[:,1] + uniform(-0.5,0.5,X.shape[0])
 	Y = Y.reshape((-1,1)) #make into column vector
 	
 	lin_reg = LinearBasisRegressor()
