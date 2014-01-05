@@ -94,8 +94,6 @@ class DeepNeuralNetClassifier(object):
 	def softmax(self, X, W):
 		#softmax activation function
 		Z = dot(X, W.T)
-		Z = maximum(Z, -1e3) #capped for numerical reasons
-		Z = minimum(Z, 1e3)
 		numerator = exp(Z)
 		S = numerator / sum(numerator, axis=1).reshape((-1,1))
 		grad = S*(1-S)
@@ -263,8 +261,8 @@ class DeepNeuralNetClassifier(object):
 		reg_schedule = self.setup_schedule(reg, itrs)
 		lr_schedule = self.setup_schedule(learn_rate, itrs)
 		bsize_schedule = self.setup_schedule(batch_size, itrs)
-			
-							   
+		
+		
 		#add a bias term (so the mean can be nonzero)
 		X = self.add_bias(X)
 		
