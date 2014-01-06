@@ -27,58 +27,6 @@ class DeepNeuralNetClassifier(object):
 		#add a dummy feature of ones
 		return hstack((X,ones((X.shape[0],1))))
 	
-	def fit(self, X, Y, itrs=100, learn_rate=0.1, reg=0.1,
-			momentum=0.5, report_cost=False, batch_size=-1):
-		"""
-		Fit the model. 
-		X - observation matrix (observations by dimensions)
-		Y - one-hot target matrix (examples by classes)
-		itrs - number of iterations to run
-		learn_rate - size of step to use for gradient descent
-		reg - regularization penalty
-		momentum - weight of the previous gradient in the update step
-		report_cost - if true, return the loss function at each step (expensive).
-		batch_size - size of minibatches to use in training
-		"""
-		
-		if batch_size==-1:
-			batch_size=X.shape[0]
-		
-		#add a bias term (so the mean can be nonzero)
-		X = self.add_bias(X)
-		
-		#hidden layers
-		self.W_hid = []
-		for insize, outsize in zip([X.shape[1]] + self.layer_sizes, self.layer_sizes):
-			self.W_hid.append( uniform(-0.01, 0.01, (outsize, insize)) )
-			
-		#output layer (softmax classifier)
-		self.W_out = uniform(-0.3, 0.3, (Y.shape[1], self.layer_sizes[-1]))
-		
-		#optimize
-		costs = []
-		layer_grads_prev = [zeros(W.shape) for W in self.W_hid] +  [zeros(self.W_out.shape)]
-		for i in range(itrs):
-			#get batch
-			minibatch_inds = self.batch_inds(batch_size, X.shape[0])
-			
-			#compute gradients (uses backprop)
-			layer_grads = self.grad(X[minibatch_inds,:], Y[minibatch_inds,:], reg) 
-			
-			#update hidden layers
-			self.W_hid = [W_i - learn_rate*(grad_i + momentum*prev_grad_i) 
-					  for W_i, grad_i, prev_grad_i in 
-					  zip(self.W_hid, layer_grads[:-1], layer_grads_prev[:-1])]
-			#update output layer
-			self.W_out = self.W_out - learn_rate*(layer_grads[-1] + momentum*layer_grads_prev[-1])
-			
-			#update the momentum terms
-			layer_grads_prev = layer_grads
-			
-			if report_cost:
-				costs.append(self.loss(X,Y,reg))
- 
-		return costs
 	
 	def batch_inds(self, batch_size, data_size):
 		inds = permutation(data_size)[:batch_size]
